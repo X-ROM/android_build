@@ -16,9 +16,9 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - jgrep:   Greps on all local Java files.
 - resgrep: Greps on all local res/*.xml files.
 - godir:   Go to the directory containing a file.
-- aospremote: Add git remote for matching AOSP repository.
 - mka:      Builds using SCHED_BATCH on all processors.
 - mkap:     Builds the module(s) using mka and pushes them to the device.
+- lska:     Cleans and builds using mka.
 - reposync: Parallel repo sync using ionice and SCHED_BATCH.
 - repopick: Utility to fetch changes from Gerrit.
 - installboot: Installs a boot.img to the connected device.
@@ -86,6 +86,12 @@ function check_product()
 
 VARIANT_CHOICES=(user userdebug eng)
 
+# Ensure our colors are used above preset colors
+unset GCC_COLORS
+
+# Always use diagnostic colors, supported in gcc 4.9.x+
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
 # check to see if the supplied variant is valid
 function check_variant()
 {
@@ -144,11 +150,11 @@ function setpaths()
     export ANDROID_EABI_TOOLCHAIN=
     local ARCH=$(get_build_var TARGET_ARCH)
     case $ARCH in
-        x86) toolchaindir=x86/i686-linux-android-$targetgccversion/bin
+        x86) toolchaindir=x86/i686-linux-android-4.6/bin
             ;;
-        arm) toolchaindir=arm/arm-linux-androideabi-$targetgccversion/bin
+        arm) toolchaindir=arm/arm-linux-androideabi-4.9/bin
             ;;
-        mips) toolchaindir=mips/mipsel-linux-android-$targetgccversion/bin
+        mips) toolchaindir=mips/mipsel-linux-android-4.6/bin
             ;;
         *)
             echo "Can't find toolchain for unknown architecture: $ARCH"
@@ -162,7 +168,7 @@ function setpaths()
     unset ARM_EABI_TOOLCHAIN ARM_EABI_TOOLCHAIN_PATH
     case $ARCH in
         arm)
-            toolchaindir=arm/arm-eabi-$targetgccversion/bin
+            toolchaindir=arm/arm-eabi-4.7/bin
             if [ -d "$gccprebuiltdir/$toolchaindir" ]; then
                  export ARM_EABI_TOOLCHAIN="$gccprebuiltdir/$toolchaindir"
                  ARM_EABI_TOOLCHAIN_PATH=":$gccprebuiltdir/$toolchaindir"
@@ -260,6 +266,8 @@ function settitle()
 
 function addcompletions()
 {
+    local T dir f
+
     # Keep us from trying to run in something that isn't bash.
     if [ -z "${BASH_VERSION}" ]; then
         return
@@ -459,10 +467,6 @@ function add_lunch_combo()
 }
 
 # add the default one here
-add_lunch_combo aosp_arm-eng
-add_lunch_combo aosp_x86-eng
-add_lunch_combo aosp_mips-eng
-add_lunch_combo vbox_x86-eng
 
 function print_lunch_menu()
 {
@@ -578,17 +582,6 @@ function lunch()
     check_product $product
     if [ $? -ne 0 ]
     then
-        # if we can't find a product, try to grab it off the C-RoM github
-        T=$(gettop)
-        pushd $T > /dev/null
-        build/tools/roomservice.py $product
-        popd > /dev/null
-        check_product $product
-    else
-        build/tools/roomservice.py $product true
-    fi
-    if [ $? -ne 0 ]
-    then
         echo
         echo "** Don't have a product spec for: '$product'"
         echo "** Do you have the right repo manifest?"
@@ -700,16 +693,19 @@ function eat()
         adb root
         sleep 1
         adb wait-for-device
-        cat << EOF > /tmp/command
---sideload
+        echo "Pushing $ZIPFILE to device"
+        if adb push $ZIPPATH /storage/sdcard0/ ; then
+            # Optional path for sdcard0 in recovery
+            [ -z "$1" ] && DIR=sdcard || DIR=$1
+            cat << EOF > /tmp/command
+--update_package=/$DIR/0/$ZIPFILE
 EOF
-        if adb push /tmp/command /cache/recovery/ ; then
-            echo "Rebooting into recovery for sideload installation"
-            adb reboot recovery
-            adb wait-for-sideload
-            adb sideload $ZIPPATH
+            if adb push /tmp/command /cache/recovery/ ; then
+                echo "Rebooting into recovery for installation"
+                adb reboot recovery
+            fi
+            rm /tmp/command
         fi
-        rm /tmp/command
     else
         echo "Nothing to eat"
         return 1
@@ -718,12 +714,6 @@ EOF
     else
         echo "The connected device does not appear to be $CROM_BUILD, run away!"
     fi
-}
-
-function omnom
-{
-    brunch $*
-    eat
 }
 
 function gettop
@@ -1067,7 +1057,7 @@ function gdbclient()
        echo >>"$OUT_ROOT/gdbclient.cmds" "target remote $PORT"
        echo >>"$OUT_ROOT/gdbclient.cmds" ""
 
-       gdbwrapper "$OUT_ROOT/gdbclient.cmds" "$OUT_EXE_SYMBOLS/$EXE"
+       $ANDROID_TOOLCHAIN/$GDB -x "$OUT_ROOT/gdbclient.cmds" "$OUT_EXE_SYMBOLS/$EXE"
   else
        echo "Unable to determine build system output dir."
    fi
@@ -1402,100 +1392,6 @@ function godir () {
     \cd $T/$pathname
 }
 
-function aospremote()
-{
-    git remote rm aosp 2> /dev/null
-    if [ ! -d .git ]
-    then
-        echo .git directory not found. Please run this from the root directory of the Android repository you wish to set up.
-    fi
-    PROJECT=`pwd | sed s#$ANDROID_BUILD_TOP/##g`
-    if (echo $PROJECT | grep -qv "^device")
-    then
-        PFX="platform/"
-    fi
-    git remote add aosp https://android.googlesource.com/$PFX$PROJECT
-    echo "Remote 'aosp' created"
-}
-export -f aospremote
-
-function installboot()
-{
-    if [ ! -e "$OUT/recovery/root/etc/recovery.fstab" ];
-    then
-        echo "No recovery.fstab found. Build recovery first."
-        return 1
-    fi
-    if [ ! -e "$OUT/boot.img" ];
-    then
-        echo "No boot.img found. Run make bootimage first."
-        return 1
-    fi
-    PARTITION=`grep "^\/boot" $OUT/recovery/root/etc/recovery.fstab | awk {'print $3'}`
-    PARTITION_TYPE=`grep "^\/boot" $OUT/recovery/root/etc/recovery.fstab | awk {'print $2'}`
-    if [ -z "$PARTITION" ];
-    then
-        echo "Unable to determine boot partition."
-        return 1
-    fi
-    adb start-server
-    adb root
-    sleep 1
-    adb wait-for-online shell mount /system 2>&1 > /dev/null
-    adb wait-for-online remount
-    if (adb shell cat /system/build.prop | grep -q "ro.crom.device=$CROM_BUILD");
-    then
-        adb push $OUT/boot.img /cache/
-        for i in $OUT/system/lib/modules/*;
-        do
-            adb push $i /system/lib/modules/
-        done
-        if [ "$PARTITION_TYPE" == "mtd" ];
-        then
-            adb shell flash_image $PARTITION /cache/boot.img
-        else
-            adb shell dd if=/cache/boot.img of=$PARTITION
-        fi
-        adb shell chmod 644 /system/lib/modules/*
-        echo "Installation complete."
-    else
-        echo "The connected device does not appear to be $CROM_BUILD, run away!"
-    fi
-}
-
-function installrecovery()
-{
-    if [ ! -e "$OUT/recovery/root/etc/recovery.fstab" ];
-    then
-        echo "No recovery.fstab found. Build recovery first."
-        return 1
-    fi
-    if [ ! -e "$OUT/recovery.img" ];
-    then
-        echo "No recovery.img found. Run make recoveryimage first."
-        return 1
-    fi
-    PARTITION=`grep "^\/recovery" $OUT/recovery/root/etc/recovery.fstab | awk {'print $3'}`
-    if [ -z "$PARTITION" ];
-    then
-        echo "Unable to determine recovery partition."
-        return 1
-    fi
-    adb start-server
-    adb root
-    sleep 1
-    adb wait-for-online shell mount /system 2>&1 >> /dev/null
-    adb wait-for-online remount
-    if (adb shell cat /system/build.prop | grep -q "ro.crom.device=$CROM_BUILD");
-    then
-        adb push $OUT/recovery.img /cache/
-        adb shell dd if=/cache/recovery.img of=$PARTITION
-        echo "Installation complete."
-    else
-        echo "The connected device does not appear to be $CROM_BUILD, run away!"
-    fi
-}
-
 function mka() {
     case `uname -s` in
         Darwin)
@@ -1505,6 +1401,26 @@ function mka() {
             schedtool -B -n 1 -e ionice -n 1 make -j$(cat /proc/cpuinfo | grep "^processor" | wc -l) "$@"
             ;;
     esac
+}
+
+function lska() {
+    if [ ! -z "$1" ]; then
+        for i in "$@"; do
+            case $i in
+                crom|otapackage|systemimage)
+                    mka installclean
+                    mka $i
+                    ;;
+                *)
+                    mka clean-$i
+                    mka $i
+                    ;;
+            esac
+        done
+    else
+        mka clean
+        mka
+    fi
 }
 
 function reposync() {
@@ -1517,105 +1433,6 @@ function reposync() {
             ;;
     esac
 }
-
-function repodiff() {
-    if [ -z "$*" ]; then
-        echo "Usage: repodiff <ref-from> [[ref-to] [--numstat]]"
-        return
-    fi
-    diffopts=$* repo forall -c \
-      'echo "$REPO_PATH ($REPO_REMOTE)"; git diff ${diffopts} 2>/dev/null ;'
-}
-
-# Credit for color strip sed: http://goo.gl/BoIcm
-function dopush()
-{
-    local func=$1
-    shift
-
-    adb start-server # Prevent unexpected starting server message from adb get-state in the next line
-    if [ $(adb get-state) != device -a $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) != 0 ] ; then
-        echo "No device is online. Waiting for one..."
-        echo "Please connect USB and/or enable USB debugging"
-        until [ $(adb get-state) = device -o $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) = 0 ];do
-            sleep 1
-        done
-        echo "Device Found."
-    fi
-
-    if (adb shell cat /system/build.prop | grep -q "ro.crom.device=$CROM_BUILD");
-    then
-    adb root &> /dev/null
-    sleep 0.3
-    adb wait-for-device &> /dev/null
-    sleep 0.3
-    adb remount &> /dev/null
-
-    $func $* | tee $OUT/.log
-
-    # Install: <file>
-    LOC=$(cat $OUT/.log | sed -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' | grep 'Install' | cut -d ':' -f 2)
-
-    # Copy: <file>
-    LOC=$LOC $(cat $OUT/.log | sed -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' | grep 'Copy' | cut -d ':' -f 2)
-
-    for FILE in $LOC; do
-        # Get target file name (i.e. system/bin/adb)
-        TARGET=$(echo $FILE | sed "s#$OUT/##")
-
-        # Don't send files that are not under /system or /data
-        if [ ! "echo $TARGET | egrep '^system\/' > /dev/null" -o \
-               "echo $TARGET | egrep '^data\/' > /dev/null" ] ; then
-            continue
-        else
-            case $TARGET in
-            system/app/SystemUI.apk|system/framework/*)
-                stop_n_start=true
-            ;;
-            *)
-                stop_n_start=false
-            ;;
-            esac
-            if $stop_n_start ; then adb shell stop ; fi
-            echo "Pushing: $TARGET"
-            adb push $FILE $TARGET
-            if $stop_n_start ; then adb shell start ; fi
-        fi
-    done
-    rm -f $OUT/.log
-    return 0
-    else
-        echo "The connected device does not appear to be $CROM_BUILD, run away!"
-    fi
-}
-
-alias mmp='dopush mm'
-alias mmmp='dopush mmm'
-alias mkap='dopush mka'
-
-function repopick() {
-    T=$(gettop)
-    $T/build/tools/repopick.py $@
-}
-
-function fixup_common_out_dir() {
-    common_out_dir=$(get_build_var OUT_DIR)/target/common
-    target_device=$(get_build_var TARGET_DEVICE)
-    if [ ! -z $CROM_FIXUP_COMMON_OUT ]; then
-        if [ -d ${common_out_dir} ] && [ ! -L ${common_out_dir} ]; then
-            mv ${common_out_dir} ${common_out_dir}-${target_device}
-            ln -s ${common_out_dir}-${target_device} ${common_out_dir}
-        else
-            [ -L ${common_out_dir} ] && rm ${common_out_dir}
-            mkdir -p ${common_out_dir}-${target_device}
-            ln -s ${common_out_dir}-${target_device} ${common_out_dir}
-        fi
-    else
-        [ -L ${common_out_dir} ] && rm ${common_out_dir}
-        mkdir -p ${common_out_dir}
-    fi
-}
-
 
 # Force JAVA_HOME to point to java 1.6 if it isn't already set
 function set_java_home() {

@@ -198,6 +198,23 @@ ifneq ($(findstring llvm-gcc,$(GCC_REALPATH)),)
 else
   BUILD_EMULATOR := true
 endif
+# When building on Leopard or above, we need to use the 10.4 SDK
+# or the generated binary will not run on Tiger.
+darwin_version := $(strip $(shell sw_vers -productVersion))
+ifneq ($(filter 10.1 10.2 10.3 10.1.% 10.2.% 10.3.% 10.4 10.4.%,$(darwin_version)),)
+    $(error Building the Android emulator requires OS X 10.5 or above)
+endif
+ifneq ($(filter 10.5 10.5.% 10.6 10.6.%,$(darwin_version)),)
+    # We are on Leopard or Snow Leopard
+    MSDK=10.5
+else
+    # We are on Lion or beyond, and 10.6 SDK is the minimum in Xcode 4.x
+   MSDK=10.6
+endif
+MACOSX_SDK := /Developer/SDKs/MacOSX$(MSDK).sdk
+ifeq ($(strip $(wildcard $(MACOSX_SDK))),)
+  BUILD_EMULATOR := false
+endif
 else   # HOST_OS is not darwin
   BUILD_EMULATOR := true
 endif  # HOST_OS is darwin
@@ -288,6 +305,11 @@ is_sdk_build :=
 ifneq ($(filter sdk win_sdk sdk_addon,$(MAKECMDGOALS)),)
 is_sdk_build := true
 endif
+
+## have selinux ##
+ifeq ($(HAVE_SELINUX),true)
+ADDITIONAL_BUILD_PROPERTIES += ro.build.selinux=1
+endif # HAVE_SELINUX
 
 ## user/userdebug ##
 
@@ -656,7 +678,7 @@ ifdef is_sdk_build
   # TODO: Should we do this for all builds and not just the sdk?
   $(foreach m, $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PACKAGES), \
     $(if $(strip $(ALL_MODULES.$(m).INSTALLED)),,\
-      $(error $(ALL_MODULES.$(m).MAKEFILE): Module '$(m)' in PRODUCT_PACKAGES has nothing to install!)))
+      $(warning $(ALL_MODULES.$(m).MAKEFILE): Module '$(m)' in PRODUCT_PACKAGES has nothing to install!)))
   $(foreach m, $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PACKAGES_DEBUG), \
     $(if $(strip $(ALL_MODULES.$(m).INSTALLED)),,\
       $(warning $(ALL_MODULES.$(m).MAKEFILE): Module '$(m)' in PRODUCT_PACKAGES_DEBUG has nothing to install!)))
@@ -667,6 +689,9 @@ ifdef is_sdk_build
     $(if $(strip $(ALL_MODULES.$(m).INSTALLED)),,\
       $(warning $(ALL_MODULES.$(m).MAKEFILE): Module '$(m)' in PRODUCT_PACKAGES_TESTS has nothing to install!)))
 endif
+
+# Install all of the host modules
+modules_to_install += $(sort $(modules_to_install) $(ALL_HOST_INSTALLED_FILES))
 
 # build/core/Makefile contains extra stuff that we don't want to pollute this
 # top-level makefile with.  It expects that ALL_DEFAULT_INSTALLED_MODULES

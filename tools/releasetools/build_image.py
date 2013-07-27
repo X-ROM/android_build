@@ -21,22 +21,9 @@ Usage:  build_image input_directory properties_file output_image_file
 
 """
 import os
-import os.path
 import subprocess
 import sys
 
-def RunCommand(cmd):
-  """ Echo and run the given command
-
-  Args:
-    cmd: the command represented as a list of strings.
-  Returns:
-    The exit code.
-  """
-  print "Running: ", " ".join(cmd)
-  p = subprocess.Popen(cmd)
-  p.communicate()
-  return p.returncode
 
 def BuildImage(in_dir, prop_dict, out_file):
   """Build an image to out_file from in_dir with property prop_dict.
@@ -51,12 +38,10 @@ def BuildImage(in_dir, prop_dict, out_file):
   """
   build_command = []
   fs_type = prop_dict.get("fs_type", "")
-  run_fsck = False
   if fs_type.startswith("ext"):
     build_command = ["mkuserimg.sh"]
     if "extfs_sparse_flag" in prop_dict:
       build_command.append(prop_dict["extfs_sparse_flag"])
-      #run_fsck = True
     build_command.extend([in_dir, out_file, fs_type,
                           prop_dict["mount_point"]])
     if "partition_size" in prop_dict:
@@ -94,7 +79,6 @@ def BuildImage(in_dir, prop_dict, out_file):
     os.remove(unsparse_image)
 
   return exit_code == 0
-
 
 def ImagePropFromGlobalDict(glob_dict, mount_point):
   """Build an image property dictionary from the global dictionary.

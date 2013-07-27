@@ -88,4 +88,14 @@ ifeq ($(WITH_HOST_DALVIK),true)
         dalvik
 endif
 
+ifeq ($(HAVE_SELINUX),true)
+    PRODUCT_PACKAGES += \
+        auditd \
+        sepolicy \
+        file_contexts \
+        seapp_contexts \
+        property_contexts \
+        mac_permissions.xml
+endif
+
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_minimal.mk)
