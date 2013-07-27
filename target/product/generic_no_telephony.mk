@@ -27,8 +27,6 @@ PRODUCT_PACKAGES := \
     CertInstaller \
     DrmProvider \
     Email \
-    Email2 \
-    Exchange \
     Exchange2 \
     FusedLocation \
     Gallery2 \
@@ -36,7 +34,6 @@ PRODUCT_PACKAGES := \
     LatinIME \
     Launcher2 \
     Music \
-    MusicFX \
     OneTimeInitializer \
     Provision \
     Phone \
