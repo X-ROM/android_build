@@ -1379,7 +1379,7 @@ else
     OTA_FROM_TARGET_SCRIPT := $(TARGET_RELEASETOOL_OTA_FROM_TARGET_SCRIPT)
 endif
 
-ifneq ($(CROM_BUILD),)
+ifneq ($(CROM_BUILD),true)
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := true
 else
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
@@ -1397,11 +1397,11 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	$(OTA_FROM_TARGET_SCRIPT) -v \
 	   -p $(HOST_OUT) \
 	   -k $(KEY_CERT_PAIR) \
-	   --backup=$(backuptool) \
 	   --override_device=$(override_device) \
+	   --backup=$(backuptool) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
 
-CROM_TARGET_PACKAGE := $(PRODUCT_OUT)/crom-$(CROM_VERSION).zip
+CROM_TARGET_PACKAGE := $(PRODUCT_OUT)/$(CROM_VERSION).zip
 
 .PHONY: otapackage crom
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
