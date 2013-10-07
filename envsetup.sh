@@ -70,8 +70,7 @@ function check_product()
 
     if (echo -n $1 | grep -q -e "^crom_") ; then
        CROM_BUILD=$(echo -n $1 | sed -e 's/^crom_//g')
-       export BUILD_NUMBER=$((date +%s%N ; echo $CROM_BUILD; hostname) | openssl sha1 | sed -e 's/
-.*=//g; s/ //g' | cut -c1-10)
+       export BUILD_NUMBER=$((date +%s%N ; echo $CROM_BUILD; hostname) | openssl sha1 | sed -e 's/.*=//g; s/ //g' | cut -c1-10)
     else
        CROM_BUILD=
     fi
