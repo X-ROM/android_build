@@ -107,7 +107,7 @@ endif
 # Both of these tags will be removed and replaced with "release-keys"
 # when the target-files is signed in a post-build step.
 ifeq ($(DEFAULT_SYSTEM_DEV_CERTIFICATE),build/target/product/security/testkey)
-BUILD_VERSION_TAGS += test-keys
+BUILD_KEYS := test-keys
 else
 BUILD_VERSION_TAGS += dev-keys
 endif
