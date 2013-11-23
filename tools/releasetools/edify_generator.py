@@ -109,8 +109,8 @@ class EdifyGenerator(object):
     self.script.append(self._WordWrap(cmd))
 
   def RunBackup(self, command):
-    self.script.append('package_extract_file("system/bin/backuptool.sh", "/tmp/backuptool.sh");')
     self.script.append('package_extract_dir("system/addon.d", "/system/addon.d");')
+    self.script.append('package_extract_file("system/bin/backuptool.sh", "/tmp/backuptool.sh");')
     self.script.append('package_extract_file("system/bin/backuptool.functions", "/tmp/backuptool.functions");')
     self.script.append('set_perm(0, 0, 0777, "/tmp/backuptool.sh");')
     self.script.append('set_perm(0, 0, 0644, "/tmp/backuptool.functions");')
@@ -240,7 +240,7 @@ class EdifyGenerator(object):
         self.script.append(
             'package_extract_file("%(fn)s", "%(device)s");' % args)
       elif partition_type == "BML":
-                self.script.append(
+	        self.script.append(
             ('assert(package_extract_file("%(fn)s", "/tmp/%(device)s.img"),\n'
              '       write_raw_image("/tmp/%(device)s.img", "%(device)s"),\n'
              '       delete("/tmp/%(device)s.img"));') % args)

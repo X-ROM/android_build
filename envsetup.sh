@@ -263,29 +263,19 @@ function settitle()
     fi
 }
 
-function addcompletions()
+function check_bash_version()
 {
     # Keep us from trying to run in something that isn't bash.
     if [ -z "${BASH_VERSION}" ]; then
-        return
+        return 1
     fi
 
     # Keep us from trying to run in bash that's too old.
     if [ "${BASH_VERSINFO[0]}" -lt 4 ] ; then
-        return
+        return 2
     fi
 
-    local T dir f
-
-    dirs="sdk/bash_completion vendor/crom/bash_completion"
-    for dir in $dirs; do
-    if [ -d ${dir} ]; then
-        for f in `/bin/ls ${dir}/[a-z]*.bash 2> /dev/null`; do
-            echo "including $f"
-            . $f
-        done
-    fi
-    done
+    return 0
 }
 
 function choosetype()
@@ -577,6 +567,17 @@ function lunch()
     check_product $product
     if [ $? -ne 0 ]
     then
+        # if we can't find a product, try to grab it off the C-RoM github
+    #    T=$(gettop)
+    #    pushd $T > /dev/null
+    #    build/tools/roomservice.py $product
+    #    popd > /dev/null
+    #    check_product $product
+    #else
+    #    build/tools/roomservice.py $product true
+    #fi
+    #if [ $? -ne 0 ]
+    #then
         echo
         echo "** Don't have a product spec for: '$product'"
         echo "** Do you have the right repo manifest?"
@@ -1520,7 +1521,7 @@ function installboot()
         fi
     fi
     adb start-server
-    adb wait-for-device
+    adb wait-for-online
     adb root
     sleep 1
     adb wait-for-online shell mount /system 2>&1 > /dev/null
@@ -1570,7 +1571,7 @@ function installrecovery()
         fi
     fi
     adb start-server
-    adb wait-for-device
+    adb wait-for-online
     adb root
     sleep 1
     adb wait-for-online shell mount /system 2>&1 >> /dev/null
@@ -1691,6 +1692,11 @@ alias mmp='dopush mm'
 alias mmmp='dopush mmm'
 alias mkap='dopush mka'
 
+function repopick() {
+    T=$(gettop)
+    $T/build/tools/repopick.py $@
+}
+
 function fixup_common_out_dir() {
     common_out_dir=$(get_build_var OUT_DIR)/target/common
     target_device=$(get_build_var TARGET_DEVICE)
@@ -1756,6 +1762,17 @@ do
 done
 unset f
 
-addcompletions
+# Add completions
+check_bash_version && {
+    dirs="sdk/bash_completion vendor/crom/bash_completion"
+    for dir in $dirs; do
+    if [ -d ${dir} ]; then
+        for f in `/bin/ls ${dir}/[a-z]*.bash 2> /dev/null`; do
+            echo "including $f"
+            . $f
+        done
+    fi
+    done
+}
 
 export ANDROID_BUILD_TOP=$(gettop)

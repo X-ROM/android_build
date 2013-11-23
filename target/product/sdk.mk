@@ -25,14 +25,14 @@ PRODUCT_PACKAGES := \
 	FusedLocation \
 	Gallery \
 	Apollo \
-        Keyguard \
+	Keyguard \
 	Mms \
 	OpenWnn \
-        PrintSpooler \
+	PrintSpooler \
 	libWnnEngDic \
 	libWnnJpnDic \
 	libwnndict \
-  	TeleService \
+	TeleService \
 	PinyinIME \
 	libjni_pinyinime \
 	SoftKeyboard \

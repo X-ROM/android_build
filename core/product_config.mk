@@ -257,6 +257,7 @@ current_product_makefile :=
 all_product_makefiles :=
 all_product_configs :=
 
+
 #############################################################################
 # TODO: Remove this hack once only 1 runtime is left.
 # Include the runtime product makefile based on the product's PRODUCT_RUNTIMES
