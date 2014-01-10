@@ -519,7 +519,7 @@ function breakfast()
             # A buildtype was specified, assume a full device name
             lunch $target
         else
-            # This is probably just the C-RoM model name
+            # This is probably just the C-ROM model name
             lunch crom_$target-userdebug
         fi
     fi
@@ -1464,6 +1464,7 @@ function godir () {
     fi
     \cd $T/$pathname
 }
+
 
 function aospremote()
 {
