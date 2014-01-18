@@ -462,7 +462,7 @@ def WriteFullOTAPackage(input_zip, output_zip):
   if "selinux_fc" in OPTIONS.info_dict:
     WritePolicyConfig(OPTIONS.info_dict["selinux_fc"], output_zip)
 
-  script.Print("Formating System...")
+  script.Print("Formatting System...")
   script.FormatPartition("/system")
   script.Print("Mounting System...")
   script.Mount("/system")
