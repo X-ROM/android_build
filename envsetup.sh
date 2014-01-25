@@ -489,7 +489,7 @@ function brunch()
 {
     breakfast $*
     if [ $? -eq 0 ]; then
-        mka crom
+        time mka crom
     else
         echo "No such item in brunch menu. Try 'breakfast'"
         return 1
