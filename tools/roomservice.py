@@ -229,7 +229,7 @@ def create_dependency_manifest(dependencies):
 
         # not adding an organization should default to android_team
         # only apply this to github
-        if remote == "github":
+        if remote == "gh":
             if not "/" in repository:
                 repository = '/'.join([android_team, repository])
         project = create_manifest_project(repository,
