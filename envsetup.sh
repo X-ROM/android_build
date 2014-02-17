@@ -16,6 +16,7 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - jgrep:   Greps on all local Java files.
 - resgrep: Greps on all local res/*.xml files.
 - godir:   Go to the directory containing a file.
+- xrrebase: Rebase a Gerrit change and push it again.
 - aospremote: Add git remote for matching AOSP repository.
 - cafremote: Add git remote for matching CodeAurora repository.
 - mka:      Builds using SCHED_BATCH on all processors.
@@ -519,7 +520,7 @@ function breakfast()
             # A buildtype was specified, assume a full device name
             lunch $target
         else
-            # This is probably just the C-ROM model name
+            # This is probably just the C-RoM model name
             lunch crom_$target-userdebug
         fi
     fi
@@ -1465,7 +1466,6 @@ function godir () {
     \cd $T/$pathname
 }
 
-
 function aospremote()
 {
     git remote rm aosp 2> /dev/null
@@ -1630,10 +1630,10 @@ function repolastsync() {
 function reposync() {
     case `uname -s` in
         Darwin)
-            repo sync -j 4 "$@" > /dev/null
+            repo sync -j 4 "$@"
             ;;
         *)
-            schedtool -B -n 1 -e ionice -n 1 `which repo` sync -j 4 "$@" > /dev/null
+            schedtool -B -n 1 -e ionice -n 1 `which repo` sync -j 4 "$@"
             ;;
     esac
 }
