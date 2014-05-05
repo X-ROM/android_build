@@ -85,7 +85,7 @@ def get_device_url(git_data):
                     break
 
     if device_url:
-        return "{}/{}".format(android_team, device_url)
+        return device_url
     raise Exception("{} not found in {} Github, exiting "
                     "roomservice".format(device, android_team))
 
@@ -200,7 +200,7 @@ def parse_device_from_folder(device):
     elif len(search) == 1:
         location = search[0]
     else:
-        print("your device can't be found in device sources..")
+        print("you device can't be found in device sources..")
         location = parse_device_from_manifest(device)
     return location
 
@@ -229,7 +229,7 @@ def create_dependency_manifest(dependencies):
 
         # not adding an organization should default to android_team
         # only apply this to github
-        if remote == "gh":
+        if remote == "github":
             if not "/" in repository:
                 repository = '/'.join([android_team, repository])
         project = create_manifest_project(repository,
